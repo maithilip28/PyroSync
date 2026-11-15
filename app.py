@@ -330,7 +330,7 @@ with t4:
     st.subheader(f"🛰️ Live NASA FIRMS Cross-Sensor Telemetry ({aoi})")
     st.caption(f"**Data Source Status:** Live NASA FIRMS 7-Day Satellite Feed | Bounding Box: `{meta['bbox']}`")
 
-@st.cache_data(ttl=1800)
+    @st.cache_data(ttl=1800)
     def pull_firms(box):
         firms_url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_7d.csv"
         try:
@@ -362,7 +362,7 @@ with t4:
     hits, scope = pull_firms(meta["bbox"])
     if scope == "global":
         st.info(f"0 active local anomalies inside {aoi} over the last 7 days (off-peak winter/wet regime) — streaming live high-FRP global NASA FIRMS detections below:")
-    
+
     m1, m2, m3 = st.columns(3)
     m1.metric("ACTIVE 7-DAY DETECTIONS", f"{len(hits)} hotspots", "VIIRS 375m Raw")
     m2.metric("MODIS-EQUIVALENT COUNT", f"{len(hits)/ALPHA_VIIRS:.1f} hotspots", "Scaled by 1/2.45")
