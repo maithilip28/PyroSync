@@ -359,9 +359,14 @@ with t4:
                 "Sensor": ["VIIRS S-NPP (375m)"] * 6
             }), "cached"
 
-    hits, scope = pull_firms(meta["bbox"])
-    if scope == "global":
+  hits, scope = pull_firms(meta["bbox"])
+    if scope == "regional":
+        st.caption(f"**Data Source Status:** 🟢 Live NASA FIRMS 7-Day Satellite Feed (Regional Match) | Bounding Box: `{meta['bbox']}`")
+    elif scope == "global":
+        st.caption(f"**Data Source Status:** 🟢 Live NASA FIRMS 7-Day Satellite Feed (Global High-FRP Stream) | Bounding Box: `{meta['bbox']}`")
         st.info(f"0 active local anomalies inside {aoi} over the last 7 days (off-peak winter/wet regime) — streaming live high-FRP global NASA FIRMS detections below:")
+    else:
+        st.caption(f"**Data Source Status:** 🟡 Cached Reference Telemetry Sample (NASA FIRMS Live Endpoint Timeout/Fallback) | Bounding Box: `{meta['bbox']}`")g live high-FRP global NASA FIRMS detections below:")
 
     m1, m2, m3 = st.columns(3)
     m1.metric("ACTIVE 7-DAY DETECTIONS", f"{len(hits)} hotspots", "VIIRS 375m Raw")
