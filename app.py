@@ -1,3 +1,6 @@
+# app.py - PyroSync cross-sensor harmonization tool for NASA Space Apps
+# Main dashboard script handling data processing, harmonization, and telemetry display.
+
 from datetime import datetime
 import numpy as np
 import pandas as pd
@@ -12,6 +15,112 @@ st.set_page_config(
     layout="wide",
 )
 
+# Custom dark theme styling with high-contrast inputs and crisp white text
+st.markdown(
+    """
+    <style>
+        header[data-testid="stHeader"] {
+            background-color: #0b0f19 !important;
+        }
+        .stApp {
+            background-color: #0b0f19;
+            color: #ffffff;
+        }
+
+        /* Keep body text bright and readable */
+        .stMarkdown p, .stMarkdown li, .stCaption, label {
+            color: #f8fafc !important;
+        }
+        h1, h2, h3, h4 {
+            color: #ffffff !important;
+        }
+
+        /* Force dark slate backgrounds on all dropdowns, inputs, and expander headers */
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="select"] div,
+        div[data-baseweb="base-input"] > input,
+        div[data-testid="stExpander"] details summary {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+            border-color: #475569 !important;
+        }
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] svg,
+        div[data-testid="stExpander"] details summary * {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+        }
+        ul[data-baseweb="menu"],
+        ul[data-baseweb="menu"] li {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
+
+        /* Metric card styling */
+        div[data-testid="stMetric"] {
+            background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+            border: 1px solid rgba(156, 163, 175, 0.45);
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+            margin-bottom: 10px;
+        }
+        div[data-testid="stMetric"] label {
+            color: #f1f5f9 !important;
+            font-weight: 600 !important;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 0.82rem !important;
+        }
+        div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            font-size: 1.75rem !important;
+        }
+
+        /* Expanders and tabs */
+        div[data-testid="stExpander"] {
+            background-color: #111827;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: 12px;
+        }
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 8px;
+            background-color: #111827;
+            padding: 6px;
+            border-radius: 10px;
+            border: 1px solid rgba(156, 163, 175, 0.35);
+        }
+        .stTabs [data-baseweb="tab"] {
+            height: 42px;
+            background-color: transparent;
+            border-radius: 8px;
+            color: #f1f5f9 !important;
+            font-weight: 600;
+        }
+        .stTabs [aria-selected="true"] {
+            background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%) !important;
+            color: #ffffff !important;
+        }
+
+        /* Sidebar styling */
+        [data-testid="stSidebar"] {
+            background-color: #030712 !important;
+            border-right: 1px solid rgba(156, 163, 175, 0.35);
+        }
+        [data-testid="stSidebar"] p,
+        [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #ffffff !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Preset regions with bounding boxes and fuel types
 REGIONS = {
     "Northern Ontario (Boreal Shield)": {
         "bbox": (-94.0, 49.5, -82.0, 54.0),
@@ -68,7 +177,7 @@ REGIONS = {
 
 @st.cache_data(ttl=3600)
 def fetch_live_nasa_firms_sample(bbox: tuple):
-    """Fetches real active fire detections from NASA FIRMS public 7-day open CSV feeds."""
+    # Pulls the last 7 days of MODIS and VIIRS data directly from NASA FIRMS public endpoints
     urls = {
         "MODIS C6.1 (1km)": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv",
         "VIIRS S-NPP (375m)": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_7d.csv",
@@ -97,6 +206,7 @@ def fetch_live_nasa_firms_sample(bbox: tuple):
 
 @st.cache_data
 def load_harmonized_records(region_name: str, bbox: tuple) -> pd.DataFrame:
+    # Generates the multi-year harmonized dataset bridging MODIS and VIIRS records
     cfg = REGIONS[region_name]
     seed_val = abs(hash((region_name, bbox))) % (2**32)
     rng = np.random.default_rng(seed_val)
@@ -145,7 +255,7 @@ def load_harmonized_records(region_name: str, bbox: tuple) -> pd.DataFrame:
     return df
 
 
-# --- SIDEBAR CONTROLS ---
+# Sidebar configuration controls
 st.sidebar.title("🎛️ PyroSync Controls")
 selected_region = st.sidebar.selectbox("Primary Area of Interest (AOI)", list(REGIONS.keys()))
 region_meta = REGIONS[selected_region]
@@ -179,8 +289,10 @@ calendar_metric = st.sidebar.selectbox(
 
 selected_year = st.sidebar.slider("Inspect Specific Year", 2000, 2026, 2023)
 
+# Load data based on selected region and fetch live feed
 df = load_harmonized_records(selected_region, active_bbox)
 live_firms_df, feed_status = fetch_live_nasa_firms_sample(active_bbox)
+year_df = df[df["Year"] == selected_year]
 
 if calendar_metric.startswith("Radiative"):
     metric_col = "Total Radiative Output (GW)"
@@ -192,60 +304,82 @@ viirs_vals = df[df["Year"] >= 2012].groupby("Week")[metric_col].mean()
 r_val, _ = stats.pearsonr(modis_vals, viirs_vals)
 r_squared = r_val**2
 
-# --- HEADER & KPI ROW ---
+# Main header & interactive calculator widget
 st.title("🔥 PyroSync: Cross-Sensor Burning Activity Calendar")
 st.markdown(
     f"**Harmonizing 27 years of NASA FIRMS MODIS (1km) & VIIRS (375m) records** for **{selected_region}**."
 )
 
-with st.expander("📐 Cross-Sensor Calibration & Radiative Physics Methodology"):
+with st.expander("📐 Live Cross-Sensor Calibration & Radiative Physics Calculator", expanded=True):
+    peak_row = year_df.loc[year_df["Harmonized Hotspots"].idxmax()]
+    sample_raw = int(peak_row["Raw Hotspots"])
+    sample_harm = float(peak_row["Harmonized Hotspots"])
+    sample_frp = float(peak_row["Mean FRP (MW)"])
+    sample_gw = float(peak_row["Total Radiative Output (GW)"])
+    active_alpha = region_meta["viirs_ratio"] if selected_year >= 2012 else 1.0
+
     st.markdown(
-        f"""
-        To eliminate the artificial 2012 detection jump caused by switching from **MODIS (1km² nadir pixel)** to **VIIRS (375m² nadir pixel)**, PyroSync applies a fuel-regime spatial scaling factor ($\\alpha_{{\\text{{sensor}}}} = {region_meta['viirs_ratio']:.2f}$) and radiative power normalization ($\\beta_{{\\text{{FRP}}}} = {region_meta['frp_scale']:.2f}$):
-        """
+        f"**Live Calculation for {selected_region} — Peak Week {int(peak_row['Week'])} ({selected_year}):**"
     )
     st.latex(
-        r"H_{\text{harmonized}}(t) = \frac{H_{\text{raw}}(t)}{\alpha_{\text{sensor}}}, \qquad E_{\text{rad}}(t) = \frac{H_{\text{harmonized}}(t) \cdot \overline{\text{FRP}}_{\text{cal}}(t)}{1000}\ \text{[GW]}"
+        rf"H_{{\text{{harmonized}}}} = \frac{{H_{{\text{{raw}}}}}}{{\alpha_{{\text{{sensor}}}}}} = \frac{{{sample_raw}}}{{{active_alpha:.2f}}} = \mathbf{{{sample_harm:.1f}\ \text{{hotspots}}}}"
+    )
+    st.latex(
+        rf"E_{{\text{{rad}}}} = \frac{{H_{{\text{{harmonized}}}} \cdot \overline{{\text{{FRP}}}}_{{\text{{cal}}}}}}{{1000}} = \frac{{{sample_harm:.1f} \times {sample_frp:.1f}\ \text{{MW}}}}{{1000}} = \mathbf{{{sample_gw:.2f}\ \text{{GW}}}}"
     )
     st.caption(
-        "Combines live 7-day NASA FIRMS C6.1/C2 orbital telemetry with a calibrated 2000–2026 climatological baseline for zero-latency browser execution."
+        f"Active Sensor Regime: {'VIIRS 375m (Scaled by 1/' + f'{active_alpha:.2f}' + ')' if selected_year >= 2012 else 'MODIS 1km Baseline (α = 1.00)'} | Adjust the year slider or region in the sidebar to recalculate live."
     )
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric(
+critical_weeks = int(year_df["Critical Period"].sum())
+peak_gw = year_df["Total Radiative Output (GW)"].max()
+
+# 2x2 Clean KPI Grid layout
+row1_col1, row1_col2 = st.columns(2)
+row1_col1.metric(
     "Cross-Sensor Consistency (R²)",
     f"{r_squared:.3f}",
     delta="Calibrated" if calibration_mode.startswith("Harmonized") else "Uncalibrated Bias",
 )
-k2.metric(
+row1_col2.metric(
     "VIIRS Spatial Scale Factor",
     f"1 / {region_meta['viirs_ratio']:.2f}x",
     delta="375m → 1km Equivalent",
 )
 
-year_df = df[df["Year"] == selected_year]
-critical_weeks = int(year_df["Critical Period"].sum())
-peak_gw = year_df["Total Radiative Output (GW)"].max()
-k3.metric(
+row2_col1, row2_col2 = st.columns(2)
+row2_col1.metric(
     f"Critical Alert Weeks ({selected_year})",
     f"{critical_weeks} wks",
     delta=f"Peak Output: {peak_gw:.2f} GW",
     delta_color="inverse",
 )
-k4.metric(
+row2_col2.metric(
     "Season Creep Shift (2000–2026)",
     "-2.1 Weeks",
     delta="Earlier Spring Onset",
     delta_color="inverse",
 )
 
-# --- TABS ---
+# Shared chart typography for bright, high-contrast labels and legends
+CHART_FONT = dict(color="#ffffff", size=13)
+LEGEND_STYLE = dict(
+    orientation="h",
+    yanchor="bottom",
+    y=1.02,
+    xanchor="right",
+    x=1,
+    font=dict(color="#ffffff", size=13),
+    bgcolor="rgba(17, 24, 39, 0.85)",
+)
+
+# Main application tabs
 tab1, tab2, tab3, tab4 = st.tabs(
     [
-        "📅 25-Year Burning Activity Calendar",
-        "⚖️ Sensor Split & Regional Benchmark",
-        "🚨 Critical Period Early Warning & Dispatch Brief",
-        "🛰️ Live NASA FIRMS Satellite Feed",
+        "📅 25-Year Calendar",
+        "⚖️ Sensor Split & Benchmark",
+        "🚨 Critical Alert Brief",
+        "🛰️ Live NASA FIRMS Feed",
     ]
 )
 
@@ -264,8 +398,16 @@ with tab1:
         line_color="cyan",
         annotation_text="2012 MODIS → VIIRS Transition",
         annotation_position="top left",
+        annotation_font_color="#ffffff",
     )
-    fig_cal.update_layout(height=500)
+    fig_cal.update_layout(
+        height=500,
+        template="plotly_dark",
+        plot_bgcolor="#0b0f19",
+        paper_bgcolor="#0b0f19",
+        font=CHART_FONT,
+        coloraxis_colorbar=dict(tickfont=CHART_FONT, title_font=CHART_FONT),
+    )
     st.plotly_chart(fig_cal, use_container_width=True)
 
 with tab2:
@@ -282,7 +424,7 @@ with tab2:
             x=annual_df["Year"],
             y=annual_df["Raw Hotspots"],
             name="Raw Uncalibrated Detections",
-            marker_color="rgba(255, 99, 71, 0.45)",
+            marker_color="rgba(248, 113, 113, 0.55)",
         )
     )
     fig_trend.add_trace(
@@ -291,7 +433,7 @@ with tab2:
             y=annual_df["Harmonized Hotspots"],
             name="PyroSync Harmonized Trend",
             mode="lines+markers",
-            line=dict(color="#1f77b4", width=3),
+            line=dict(color="#38bdf8", width=3),
         )
     )
     fig_trend.add_trace(
@@ -300,17 +442,27 @@ with tab2:
             y=annual_df["Total Radiative Output (GW)"],
             name="Cumulative Radiative Energy (GW)",
             mode="lines",
-            line=dict(color="#2ca02c", width=2, dash="dot"),
+            line=dict(color="#4ade80", width=2.5, dash="dot"),
             yaxis="y2",
         )
     )
-    fig_trend.add_vline(x=2011.5, line_dash="dash", line_color="gray")
+    fig_trend.add_vline(x=2011.5, line_dash="dash", line_color="#cbd5e1")
     fig_trend.update_layout(
-        xaxis_title="Year",
-        yaxis=dict(title="Annual Thermal Anomaly Index"),
-        yaxis2=dict(title="Total Radiative Output (GW)", overlaying="y", side="right"),
-        height=420,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(title="Year", tickfont=CHART_FONT, title_font=CHART_FONT),
+        yaxis=dict(title="Annual Thermal Anomaly Index", tickfont=CHART_FONT, title_font=CHART_FONT),
+        yaxis2=dict(
+            title="Total Radiative Output (GW)",
+            overlaying="y",
+            side="right",
+            tickfont=CHART_FONT,
+            title_font=CHART_FONT,
+        ),
+        height=430,
+        template="plotly_dark",
+        plot_bgcolor="#0b0f19",
+        paper_bgcolor="#0b0f19",
+        font=CHART_FONT,
+        legend=LEGEND_STYLE,
     )
     st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -333,7 +485,14 @@ with tab2:
         color="Region",
         title=f"27-Year Weekly Fire Season Profile: {selected_region} vs. {benchmark_region}",
     )
-    fig_comp.update_layout(height=360)
+    fig_comp.update_layout(
+        height=380,
+        template="plotly_dark",
+        plot_bgcolor="#0b0f19",
+        paper_bgcolor="#0b0f19",
+        font=CHART_FONT,
+        legend=LEGEND_STYLE,
+    )
     st.plotly_chart(fig_comp, use_container_width=True)
 
 with tab3:
@@ -346,9 +505,16 @@ with tab3:
             x="Week",
             y="Harmonized Hotspots",
             color="Critical Period",
-            color_discrete_map={True: "#d62728", False: "#ff9896"},
+            color_discrete_map={True: "#ef4444", False: "#fca5a5"},
             hover_data=["Month Name", "Mean FRP (MW)", "Total Radiative Output (GW)"],
             title=f"Weekly Fire Activity vs. Critical Dispatch Threshold ({selected_year})",
+        )
+        fig_yr.update_layout(
+            template="plotly_dark",
+            plot_bgcolor="#0b0f19",
+            paper_bgcolor="#0b0f19",
+            font=CHART_FONT,
+            legend=LEGEND_STYLE,
         )
         st.plotly_chart(fig_yr, use_container_width=True)
 
@@ -411,4 +577,3 @@ with tab4:
         st.write(
             "No active fires detected inside this bounding box during the current 7-day window. Switch to **Amazon Basin (Southern Arc)** or enter custom coordinates in an active fire zone to inspect live detections!"
         )
-        
