@@ -330,11 +330,13 @@ with t4:
     st.subheader(f"🛰️ Live NASA FIRMS Cross-Sensor Telemetry ({aoi})")
     st.caption(f"**Data Source Status:** Live NASA FIRMS 7-Day Satellite Feed | Bounding Box: `{meta['bbox']}`")
 
-    @st.cache_data(ttl=1800)
+@st.cache_data(ttl=1800)
     def pull_firms(box):
         firms_url = "https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_Global_7d.csv"
         try:
             raw_df = pd.read_csv(firms_url, usecols=["latitude", "longitude", "bright_ti4", "acq_date", "frp", "confidence"])
+            if raw_df.empty:
+                raise ValueError("empty")
             in_box = raw_df[
                 raw_df["longitude"].between(box[0], box[2]) &
                 raw_df["latitude"].between(box[1], box[3])
