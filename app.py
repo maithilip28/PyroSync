@@ -120,7 +120,7 @@ REGIONS = {
         "frp_mean": 131.2,
         "seed": 77
     },
-    "Amazon Arc of Deforestation": {
+   "Amazon Arc of Deforestation": {
         "bounds": "12.0°S – 6.0°S, 62.0°W – 52.0°W",
         "bbox": (-62.0, -12.0, -52.0, -6.0),
         "fuel": "Tropical Moist Broadleaf & Cerrado Edge",
@@ -129,13 +129,32 @@ REGIONS = {
         "base_peak": 285,
         "frp_mean": 96.4,
         "seed": 99
+    },
+    "Custom Bounding Box": {
+        "bounds": "User-Defined Coordinates",
+        "bbox": (-94.0, 49.5, -82.0, 54.0),
+        "fuel": "User-Defined Regional Fuel Complex",
+        "r2": 0.965,
+        "creep": -2.0,
+        "base_peak": 180,
+        "frp_mean": 115.0,
+        "seed": 55
     }
 }
 
 with st.sidebar:
     st.markdown("## 🎛️ PyroSync Controls")
     aoi = st.selectbox("Primary Area of Interest (AOI)", list(REGIONS.keys()))
-    meta = REGIONS[aoi]
+    meta = REGIONS[aoi].copy()
+    if aoi == "Custom Bounding Box":
+        c_lat1, c_lat2 = st.columns(2)
+        min_lat = c_lat1.number_input("Min Lat (°)", -90.0, 90.0, 45.0)
+        max_lat = c_lat2.number_input("Max Lat (°)", -90.0, 90.0, 55.0)
+        c_lon1, c_lon2 = st.columns(2)
+        min_lon = c_lon1.number_input("Min Lon (°)", -180.0, 180.0, -95.0)
+        max_lon = c_lon2.number_input("Max Lon (°)", -180.0, 180.0, -80.0)
+        meta["bbox"] = (min_lon, min_lat, max_lon, max_lat)
+        meta["bounds"] = f"{min_lat:.1f}° – {max_lat:.1f}°, {min_lon:.1f}° – {max_lon:.1f}°"
     st.caption(f"**Bounds:** {meta['bounds']}  \n**Dominant Fuel:** {meta['fuel']}")
 
     st.markdown("---")
